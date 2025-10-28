@@ -12,6 +12,7 @@ import {
   GitBranch,
   BookCheck,
   Rocket,
+  Cpu,
 } from 'lucide-react';
 import Logo from '@/components/icons/Logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,6 +46,13 @@ export default function Home() {
       description:
         'Commit your newly generated README directly to your repository without leaving the app.',
     },
+  ];
+
+  const providers = [
+    { name: 'Gemini' },
+    { name: 'OpenAI' },
+    { name: 'Groq' },
+    { name: 'OpenRouter' },
   ];
 
   const steps = [
@@ -149,8 +157,28 @@ export default function Home() {
         </div>
       </section>
 
+      {/* AI Providers Section */}
+      <section id="providers" className="py-20">
+        <div className="container mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="font-headline text-3xl md:text-4xl font-bold">Powered by Multiple AI Providers</h2>
+            <p className="text-muted-foreground mt-2 text-lg">
+              Use your preferred AI provider with free model options available.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            {providers.map((provider) => (
+              <div key={provider.name} className="flex items-center justify-center gap-3 p-6 rounded-lg bg-card border hover:border-primary transition-colors">
+                <Cpu className="h-6 w-6 text-muted-foreground" />
+                <span className="text-lg font-semibold">{provider.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20">
+      <section id="how-it-works" className="py-20 bg-card">
         <div className="container mx-auto">
           <div className="text-center mb-16">
             <h2 className="font-headline text-3xl md:text-4xl font-bold">
@@ -179,7 +207,7 @@ export default function Home() {
 
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 bg-card">
+      <section id="testimonials" className="py-20">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h2 className="font-headline text-3xl md:text-4xl font-bold">
@@ -191,7 +219,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
-              <Card key={index} className="flex flex-col justify-between">
+              <Card key={index} className="flex flex-col justify-between bg-card">
                 <CardHeader>
                   <div className="flex items-center mb-4">
                     <Avatar className="h-12 w-12 mr-4">
@@ -217,7 +245,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section id="cta" className="py-20">
+      <section id="cta" className="py-20 bg-card">
         <div className="container mx-auto text-center">
           <h2 className="font-headline text-3xl md:text-4xl font-bold mb-4">
             Ready to Supercharge Your Docs?
@@ -236,7 +264,7 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 bg-card border-t">
+      <footer className="py-8 border-t">
         <div className="container mx-auto text-center text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} ReadmeAI Builder. All rights reserved.</p>
           <p className="text-sm mt-2">
