@@ -1,3 +1,6 @@
+
+'use client'
+
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,8 +22,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import Image from 'next/image';
+import { useUser } from '@/firebase';
+import { GithubAuthProvider, signInWithPopup } from 'firebase/auth';
+import { useAuth } from '@/firebase';
 
 export default function Home() {
+  const { user, loading } = useUser();
+  const auth = useAuth();
+  
+  const handleLogin = async () => {
+    if (!auth) return;
+    const provider = new GithubAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in with GitHub: ", error);
+    }
+  };
+
+
   const features = [
     {
       icon: <Bot className="h-8 w-8 text-primary" />,
@@ -117,13 +137,24 @@ export default function Home() {
             Effortlessly generate professional README files for your GitHub repositories using the power of AI. Connect your GitHub account and let's get started.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button asChild size="lg" className="font-bold text-lg">
-              <Link href="/dashboard">
+            {loading ? (
+              <Button size="lg" className="font-bold text-lg" disabled>
+                Loading...
+              </Button>
+            ) : user ? (
+              <Button asChild size="lg" className="font-bold text-lg">
+                <Link href="/dashboard">
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            ) : (
+              <Button size="lg" className="font-bold text-lg" onClick={handleLogin}>
                 <Github className="mr-2 h-5 w-5" />
                 Login with GitHub
                 <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -284,13 +315,20 @@ export default function Home() {
           <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-8">
             Stop procrastinating on documentation. Generate your first README for free, right now.
           </p>
-          <Button asChild size="lg" className="font-bold text-lg">
-            <Link href="/dashboard">
+          {loading ? null : user ? (
+            <Button asChild size="lg" className="font-bold text-lg">
+              <Link href="/dashboard">
+                <Rocket className="mr-2 h-5 w-5" />
+                Start Generating
+              </Link>
+            </Button>
+          ) : (
+            <Button size="lg" className="font-bold text-lg" onClick={handleLogin}>
               <Github className="mr-2 h-5 w-5" />
               Get Started with GitHub
               <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
+            </Button>
+          )}
         </div>
       </section>
 

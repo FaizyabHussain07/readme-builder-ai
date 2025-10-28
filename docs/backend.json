@@ -1,0 +1,9 @@
+{
+    "entities": {},
+    "auth": {
+        "providers": [
+            "github.com"
+        ]
+    },
+    "firestore": {}
+}
