@@ -9,6 +9,9 @@ import {
   GitCommit,
   Star,
   Download,
+  GitBranch,
+  BookCheck,
+  Rocket,
 } from 'lucide-react';
 import Logo from '@/components/icons/Logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,21 +52,21 @@ export default function Home() {
       step: 1,
       title: 'Connect Your GitHub',
       description: 'Sign in with your GitHub account to access your public repositories.',
-      image: PlaceHolderImages.find((img) => img.id === 'step-1'),
+      icon: <GitBranch className="h-12 w-12 text-primary" />,
     },
     {
       step: 2,
       title: 'Select a Repository',
       description:
         'Choose the repository you want to create a README for from a list of your projects.',
-      image: PlaceHolderImages.find((img) => img.id === 'step-2'),
+      icon: <BookCheck className="h-12 w-12 text-primary" />,
     },
     {
       step: 3,
       title: 'Generate & Refine',
       description:
         'Let the AI generate a draft, then edit and customize the content in the live editor.',
-      image: PlaceHolderImages.find((img) => img.id === 'step-3'),
+      icon: <Rocket className="h-12 w-12 text-primary" />,
     },
   ];
 
@@ -158,27 +161,15 @@ export default function Home() {
             </p>
           </div>
           <div className="relative">
-             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-border -translate-y-1/2 hidden md:block"></div>
+             <div className="absolute top-1/2 left-0 w-full h-0.5 bg-border -translate-y-1/2 hidden md:block" style={{top: '4rem'}}></div>
              <div className="grid grid-cols-1 md:grid-cols-3 gap-16 relative">
               {steps.map((step) => (
                 <div key={step.step} className="flex flex-col items-center text-center">
-                    <div className="relative z-10 w-16 h-16 flex items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-2xl mb-6 border-4 border-background">
-                      {step.step}
+                    <div className="relative z-10 w-32 h-32 flex items-center justify-center rounded-full bg-primary/10 mb-6 border-4 border-background">
+                       {step.icon}
                     </div>
                     <h3 className="font-headline text-2xl font-bold mb-3">{step.title}</h3>
                     <p className="text-muted-foreground mb-6">{step.description}</p>
-                    {step.image && (
-                      <Card className="overflow-hidden shadow-lg w-full">
-                        <Image
-                          src={step.image.imageUrl}
-                          alt={step.description}
-                          width={600}
-                          height={400}
-                          className="w-full object-cover"
-                          data-ai-hint={step.image.imageHint}
-                        />
-                      </Card>
-                    )}
                 </div>
               ))}
             </div>
