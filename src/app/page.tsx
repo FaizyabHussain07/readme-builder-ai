@@ -252,7 +252,7 @@ export default function Home() {
           </h2>
           <div className="mt-12 flex flex-col sm:flex-row items-center gap-8 bg-background p-8 rounded-lg border">
               <Avatar className="h-32 w-32">
-                  <AvatarImage src="https://avatars.githubusercontent.com/u/1024025?v=4" alt="Faizyab Hussain" />
+                  <AvatarImage src="/faizyab.jpg" alt="Faizyab Hussain" />
                   <AvatarFallback>FH</AvatarFallback>
               </Avatar>
               <div className="text-left">
