@@ -249,7 +249,15 @@ export default function Home() {
         <div className="container mx-auto text-center text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} ReadmeAI Builder. All rights reserved.</p>
           <p className="text-sm mt-2">
-            Built with Next.js, ShadCN UI, and lots of ☕.
+            Built by{' '}
+            <a
+              href="https://www.linkedin.com/in/faizyabhussain/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-primary"
+            >
+              Faizyab Hussain
+            </a>
           </p>
         </div>
       </footer>
