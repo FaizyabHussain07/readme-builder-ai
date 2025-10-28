@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { type RepoDetails } from '@/lib/github-data';
-import { FileTree, Library, Scale } from 'lucide-react';
+import { GitMerge, Library, Scale } from 'lucide-react';
 
 interface RepoAnalysisProps {
   repoDetails: RepoDetails;
@@ -43,7 +43,7 @@ export default function RepoAnalysis({ repoDetails }: RepoAnalysisProps) {
 
         <div className="flex items-start gap-4">
           <div className="p-2 bg-muted rounded-md">
-            <FileTree className="h-5 w-5 text-muted-foreground" />
+            <GitMerge className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
             <h4 className="font-semibold">File Structure</h4>
