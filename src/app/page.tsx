@@ -243,9 +243,40 @@ export default function Home() {
           </div>
         </div>
       </section>
+      
+      {/* From the Creator Section */}
+      <section id="creator" className="py-20 bg-card">
+        <div className="container mx-auto text-center max-w-4xl">
+          <h2 className="font-headline text-3xl md:text-4xl font-bold">
+            From a Developer, For Developers
+          </h2>
+          <div className="mt-12 flex flex-col sm:flex-row items-center gap-8 bg-background p-8 rounded-lg border">
+              <Avatar className="h-32 w-32">
+                  <AvatarImage src="https://avatars.githubusercontent.com/u/1024025?v=4" alt="Faizyab Hussain" />
+                  <AvatarFallback>FH</AvatarFallback>
+              </Avatar>
+              <div className="text-left">
+                  <p className="text-muted-foreground mb-4">
+                      "As a developer, I spent countless hours writing and rewriting READMEs. It's a crucial but often tedious part of any project. I built ReadmeAI Builder to scratch my own itch—to automate the boring parts of documentation so we can all focus on what we love: coding. My goal is to help developers like myself create beautiful, effective READMEs with minimal effort."
+                  </p>
+                  <div className="font-semibold">
+                      <p>Faizyab Hussain, Creator of ReadmeAI Builder</p>
+                      <a 
+                          href="https://www.linkedin.com/in/faizyabhussain/" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-primary hover:underline text-sm"
+                      >
+                          Connect on LinkedIn
+                      </a>
+                  </div>
+              </div>
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section */}
-      <section id="cta" className="py-20 bg-card">
+      <section id="cta" className="py-20">
         <div className="container mx-auto text-center">
           <h2 className="font-headline text-3xl md:text-4xl font-bold mb-4">
             Ready to Supercharge Your Docs?
