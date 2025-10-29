@@ -1,5 +1,9 @@
+
 import { unstable_cache as cache } from 'next/cache';
 import { formatDistanceToNow } from 'date-fns';
+import { cookies } from 'next/headers';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
 
 export interface Repository {
   id: number;
@@ -19,38 +23,50 @@ export interface RepoDetails extends Repository {
   license: string;
 }
 
+// Initialize Firebase Admin SDK if not already initialized
+if (!getApps().length && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
+}
+
+
 /**
- * Securely retrieves the GitHub access token for the current user by calling our internal API route.
+ * Securely retrieves the GitHub access token for the current user directly from the session cookie.
  * This function is intended to be called from Server Components or Route Handlers.
  * @returns {Promise<string | null>} The GitHub access token, or null if the user is not authenticated.
  */
 export async function getGitHubAccessToken(): Promise<string | null> {
-  // This function is now simplified to fetch from our own secure API endpoint.
-  // The middleware ensures this code is only run for authenticated users if it's on a protected route.
-  // We need to construct the full URL for the API route.
-  const host = process.env.NEXT_PUBLIC_VERCEL_URL
-    ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-    : 'http://localhost:9002';
-  
   try {
-    const response = await fetch(`${host}/api/auth/token`, {
-        // We must forward cookies to the API route for it to work.
-        headers: {
-            'Cookie': (await import('next/headers')).cookies().toString(),
-        },
-    });
-
-    if (!response.ok) {
-      const errorBody = await response.json();
-      console.error('Failed to get access token:', errorBody.error);
-      return null;
+    const sessionCookie = cookies().get('session')?.value;
+    if (!sessionCookie) {
+      return null; // No session cookie, user is not logged in.
     }
-    const data = await response.json();
-    return data.accessToken;
+
+    // Verify the session cookie and get the user's data
+    const decodedIdToken = await getAuth().verifySessionCookie(sessionCookie, true);
+    const user = await getAuth().getUser(decodedIdToken.uid);
+
+    // Find the GitHub provider data to extract the access token
+    const githubProviderData = user.providerData.find(
+      (provider) => provider.providerId === 'github.com'
+    );
+    
+    // The provider data is a plain JSON object, so we can cast it to access its properties.
+    const providerJson = githubProviderData?.toJSON() as any;
+
+    if (providerJson?.accessToken) {
+      return providerJson.accessToken;
+    }
+
+    console.warn('GitHub access token not found in user provider data.');
+    return null;
 
   } catch (error) {
-      console.error('Error fetching access token from API route:', error);
-      return null;
+    console.error('Error verifying session cookie or getting GitHub access token:', error);
+    // This can happen if the cookie is invalid or expired.
+    return null;
   }
 }
 

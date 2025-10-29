@@ -4,12 +4,12 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { NextResponse } from 'next/server';
 
-// Initialize Firebase Admin SDK
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
-if (!getApps().length) {
-  initializeApp({
-    credential: cert(serviceAccount),
-  });
+// Initialize Firebase Admin SDK if not already initialized
+if (!getApps().length && process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    initializeApp({
+      credential: cert(serviceAccount),
+    });
 }
 
 export async function GET() {
