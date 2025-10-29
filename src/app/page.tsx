@@ -33,10 +33,20 @@ export default function Home() {
     provider.addScope('repo');
     provider.addScope('user');
     try {
-      await signInWithPopup(auth, provider);
-      // On successful login, middleware will handle the redirect.
-      // We can also force a reload to ensure middleware is triggered.
-      window.location.href = '/dashboard';
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+
+      // Create session cookie
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      // Redirect to dashboard
+      window.location.assign('/dashboard');
     } catch (error) {
       console.error("Error signing in with GitHub: ", error);
     }

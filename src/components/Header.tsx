@@ -25,19 +25,26 @@ export default function Header() {
   const { user, loading } = useUser();
   const auth = useAuth();
   
-  // All redirection logic is now handled by src/middleware.ts
-  // This simplifies the Header component significantly.
-
   const handleLogin = async () => {
     if (!auth) return;
     const provider = new GithubAuthProvider();
     provider.addScope('repo');
     provider.addScope('user');
     try {
-      await signInWithPopup(auth, provider);
-      // On successful login, middleware will handle the redirect.
-      // We can also force a reload to ensure middleware is triggered.
-      window.location.href = '/dashboard';
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+
+      // Create session cookie
+      await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
+      });
+
+      // Redirect to dashboard
+      window.location.assign('/dashboard');
     } catch (error) {
       console.error('Error signing in with GitHub:', error);
     }
@@ -46,11 +53,12 @@ export default function Header() {
   const handleLogout = async () => {
     if (!auth) return;
     try {
+      // Sign out of Firebase on the client
       await signOut(auth);
       // Clear the session cookie by calling our API route
       await fetch('/api/auth/logout', { method: 'POST' });
-      // On successful logout, middleware will handle the redirect.
-      window.location.href = '/';
+      // Redirect to home
+      window.location.assign('/');
     } catch (error) {
       console.error('Error signing out:', error);
     }
