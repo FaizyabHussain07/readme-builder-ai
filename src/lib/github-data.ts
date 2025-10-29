@@ -1,3 +1,4 @@
+
 import { cookies } from 'next/headers';
 import { unstable_cache as cache } from 'next/cache';
 import { formatDistanceToNow } from 'date-fns';
@@ -68,7 +69,7 @@ export async function getGitHubAccessToken(): Promise<string | null> {
     const githubProviderData = user.providerData.find(
       (provider) => provider.providerId === 'github.com'
     );
-
+    
     // The access token is not directly on the providerData object itself.
     // It's part of the raw JSON that Firebase stores. We need to parse it.
     if (githubProviderData && githubProviderData.toJSON) {
