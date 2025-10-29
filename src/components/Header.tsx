@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,15 +15,31 @@ import Logo from './icons/Logo';
 import { Button } from './ui/button';
 import { Settings, LogOut, Github } from 'lucide-react';
 import SettingsDialog from './SettingsDialog';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase';
 import { GithubAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { useAuth } from '@/firebase';
+import { useRouter, usePathname } from 'next/navigation';
 
 export default function Header() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { user, loading } = useUser();
   const auth = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (loading) return; // Wait until loading is finished
+
+    const isAuthPage = pathname === '/';
+    const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/repository');
+
+    if (user && isAuthPage) {
+      router.push('/dashboard');
+    } else if (!user && isProtectedPage) {
+      router.push('/');
+    }
+  }, [user, loading, pathname, router]);
 
   const handleLogin = async () => {
     if (!auth) return;
@@ -31,6 +48,7 @@ export default function Header() {
     provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
+      router.push('/dashboard');
     } catch (error) {
       console.error('Error signing in with GitHub:', error);
     }
@@ -40,7 +58,9 @@ export default function Header() {
     if (!auth) return;
     try {
       await signOut(auth);
-    } catch (error) {
+      router.push('/');
+    } catch (error)
+ {
       console.error('Error signing out:', error);
     }
   };
@@ -85,10 +105,12 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={handleLogin}>
-              <Github className="mr-2 h-5 w-5" />
-              Login with GitHub
-            </Button>
+             pathname !== '/' && (
+              <Button onClick={handleLogin}>
+                <Github className="mr-2 h-5 w-5" />
+                Login with GitHub
+              </Button>
+            )
           )}
         </div>
       </div>
