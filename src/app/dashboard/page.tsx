@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import RepoCard, { RepoCardSkeleton } from '@/components/RepoCard';
-import { getRepositories, type Repository } from '@/lib/github-data';
+import { getRepositories, type Repository, getGitHubAccessToken } from '@/lib/github-data';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
 
@@ -20,7 +20,8 @@ export default function DashboardPage() {
 }
 
 async function RepoGrid() {
-  const repos = await getRepositories();
+  const accessToken = await getGitHubAccessToken();
+  const repos = await getRepositories(accessToken);
 
   if (repos === null) {
     return (
@@ -28,7 +29,7 @@ async function RepoGrid() {
         <AlertTriangle className="h-4 w-4" />
         <AlertTitle>Error</AlertTitle>
         <AlertDescription>
-          Could not fetch repositories from GitHub. Please ensure you are logged in and try again later.
+          Could not fetch repositories from GitHub. Please ensure you are logged in and your session is valid. You might need to log out and log back in.
         </AlertDescription>
       </Alert>
     );

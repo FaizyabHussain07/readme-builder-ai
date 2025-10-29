@@ -1,7 +1,7 @@
-
-import { auth } from 'firebase-admin';
+import { auth } from 'firebase-admin/lib/auth';
 import { cookies } from 'next/headers';
 import { unstable_cache as cache } from 'next/cache';
+import { GithubAuthProvider, getAuth } from 'firebase/auth';
 
 export interface Repository {
   id: number;
@@ -21,47 +21,42 @@ export interface RepoDetails extends Repository {
   license: string;
 }
 
-async function getGitHubAccessToken() {
+async function getFirebaseAdminApp() {
+  const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+
+  if (!getApps().length) {
+    return initializeApp({
+      credential: cert(serviceAccount),
+    });
+  }
+  return getApps()[0];
+}
+
+
+export async function getGitHubAccessToken() {
   try {
     const sessionCookie = cookies().get('session')?.value;
     if (!sessionCookie) {
       console.log('Session cookie not found');
       return null;
     }
-    const decodedIdToken = await auth().verifySessionCookie(sessionCookie, true);
+    const adminApp = await getFirebaseAdminApp();
+    const adminAuth = await import('firebase-admin/auth');
+    const decodedIdToken = await adminAuth.getAuth(adminApp).verifySessionCookie(sessionCookie, true);
     
-    // This is a simplified way to get the token. 
-    // In a real app, you might need to handle token refresh.
-    // The access token is not directly available in the decoded ID token.
-    // A more robust solution would involve using the Firebase Admin SDK to get the full user record
-    // or, more simply, getting it on the client and passing it to a server action.
-    // For this context, we will assume a mechanism exists to get the token.
-    // Let's fetch the user to get the provider data.
-    const user = await auth().getUser(decodedIdToken.uid);
-    const githubProvider = user.providerData.find(p => p.providerId === 'github.com');
+    // This is not a standard place to get the access token from.
+    // In a proper OAuth flow, you'd securely store the access token after the user logs in
+    // and retrieve it for server-side API calls.
+    // For this demonstration, we're assuming the access token might be available in custom claims,
+    // which is one secure way to handle it. However, this app doesn't implement that claim-setting logic.
     
-    // This is a mock-up of how one might get an access token.
-    // The actual token is not available this way for security reasons.
-    // A proper implementation requires server-side OAuth handling to store and retrieve this.
-    // For the purpose of this demo, we'll proceed with a simulated API call that doesn't need a real token.
-    
-    // A real implementation would look something like this, but requires more setup:
-    // const credential = GithubAuthProvider.credential(user.providerData[0].uid, user.providerData[0].accessToken);
-    // return credential.accessToken;
-
-    // For now, this is a placeholder. Let's try to get a token from the custom claims if it were stored there.
-    // This is NOT standard practice and is for demonstration only.
-    if (decodedIdToken.firebase.sign_in_provider === 'github.com') {
-       // This is a conceptual placeholder. The token isn't in claims by default.
-       // In a real app, we'd use a server action and get the token on the client.
-       // But to make the page a server component, we fetch here.
-       // Let's use a mock call for now.
-    }
-    
-    // Since we cannot get the real access token securely on the server this way without more complex setup,
-    // we will simulate the user for the API call.
-    return "mock_token";
-
+    // A robust implementation would involve a custom auth flow to store and retrieve the token,
+    // but that's beyond the current scope.
+    // We'll rely on a mock token as the secure retrieval mechanism isn't fully built out.
+    // In a real scenario, the token would be fetched from a secure store like Firestore
+    // or passed via a custom claim.
+    return process.env.GITHUB_ACCESS_TOKEN || 'mock_token';
 
   } catch (error) {
     console.error('Error getting GitHub access token:', error);
@@ -71,96 +66,102 @@ async function getGitHubAccessToken() {
 
 
 export const getRepositories = cache(
-  async (): Promise<Repository[] | null> => {
-    // In a real app, we would use the user's access token to fetch their repositories.
-    // Since we can't get it securely here without a more complex setup,
-    // we will continue to use mock data, but structure the code as if we were.
-    const token = await getGitHubAccessToken();
-
+  async (token: string | null): Promise<Repository[] | null> => {
+    
     if (!token) {
       console.log("No GitHub token available. Returning empty array.");
-      return [];
+      // Return null to indicate an error state to the UI
+      return null;
     }
 
     try {
-        // This is where you would fetch the user's repositories from the GitHub API
-        // For example: const response = await fetch('https://api.github.com/user/repos', { ... });
-        // Since we are using a mock, let's just return the mock data.
-      
-        const repositories: Repository[] = [
-            {
-              id: 1,
-              name: 'react-kanban-board',
-              owner: 'user',
-              description: 'A simple Kanban board application built with React and TypeScript.',
-              language: 'TypeScript',
-              stars: 125,
-              forks: 30,
-              updatedAt: '2 days ago',
-              ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-            },
-            {
-              id: 2,
-              name: 'node-api-starter',
-              owner: 'user',
-              description: 'A boilerplate for building RESTful APIs with Node.js, Express, and MongoDB.',
-              language: 'JavaScript',
-              stars: 480,
-              forks: 150,
-              updatedAt: '5 days ago',
-              ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-            },
-            {
-              id: 3,
-              name: 'awesome-design-patterns',
-              owner: 'user',
-              description: 'A curated list of software design patterns and principles.',
-              language: null,
-              stars: 2300,
-              forks: 450,
-              updatedAt: '1 week ago',
-              ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-            },
-            {
-              id: 4,
-              name: 'python-data-science-utils',
-              owner: 'user',
-              description: 'A collection of utility functions for data science projects in Python.',
-              language: 'Python',
-              stars: 78,
-              forks: 12,
-              updatedAt: '3 weeks ago',
-              ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-            },
-            {
-              id: 5,
-              name: 'personal-portfolio-v2',
-              owner: 'user',
-              description: 'My personal portfolio website built with Next.js and Tailwind CSS.',
-              language: 'TypeScript',
-              stars: 34,
-              forks: 5,
-              updatedAt: '1 month ago',
-              ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-            },
-            {
-              id: 6,
-              name: 'dotfiles',
-              owner: 'user',
-              description: 'My personal dotfiles for customizing my development environment.',
-              language: 'Shell',
-              stars: 92,
-              forks: 22,
-              updatedAt: '2 months ago',
-              ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-            },
-          ];
+      // With a real token, you would fetch from the GitHub API
+      // const response = await fetch('https://api.github.com/user/repos?sort=updated&type=owner', {
+      //   headers: {
+      //     Authorization: `Bearer ${token}`,
+      //     'X-GitHub-Api-Version': '2022-11-28',
+      //   },
+      // });
 
-      return repositories.map((repo) => ({
+      // if (!response.ok) {
+      //   console.error('GitHub API responded with:', response.status);
+      //   return null;
+      // }
+      // const data = await response.json();
+
+      const mockData: Repository[] = [
+        {
+          id: 1,
+          name: 'react-kanban-board',
+          owner: 'user',
+          description: 'A simple Kanban board application built with React and TypeScript.',
+          language: 'TypeScript',
+          stars: 125,
+          forks: 30,
+          updatedAt: '2 days ago',
+          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
+        },
+        {
+          id: 2,
+          name: 'node-api-starter',
+          owner: 'user',
+          description: 'A boilerplate for building RESTful APIs with Node.js, Express, and MongoDB.',
+          language: 'JavaScript',
+          stars: 480,
+          forks: 150,
+          updatedAt: '5 days ago',
+          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
+        },
+        {
+          id: 3,
+          name: 'awesome-design-patterns',
+          owner: 'user',
+          description: 'A curated list of software design patterns and principles.',
+          language: null,
+          stars: 2300,
+          forks: 450,
+          updatedAt: '1 week ago',
+          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
+        },
+        {
+          id: 4,
+          name: 'python-data-science-utils',
+          owner: 'user',
+          description: 'A collection of utility functions for data science projects in Python.',
+          language: 'Python',
+          stars: 78,
+          forks: 12,
+          updatedAt: '3 weeks ago',
+          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
+        },
+        {
+          id: 5,
+          name: 'personal-portfolio-v2',
+          owner: 'user',
+          description: 'My personal portfolio website built with Next.js and Tailwind CSS.',
+          language: 'TypeScript',
+          stars: 34,
+          forks: 5,
+          updatedAt: '1 month ago',
+          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
+        },
+        {
+          id: 6,
+          name: 'dotfiles',
+          owner: 'user',
+          description: 'My personal dotfiles for customizing my development environment.',
+          language: 'Shell',
+          stars: 92,
+          forks: 22,
+          updatedAt: '2 months ago',
+          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
+        },
+      ];
+
+      return mockData.map((repo) => ({
         ...repo,
-        updatedAt: repo.updatedAt,
-        owner: repo.owner,
-        ownerAvatar: repo.ownerAvatar,
+        owner: repo.owner || 'unknown',
+        ownerAvatar: repo.ownerAvatar || '',
       }));
     } catch (error) {
       console.error('Failed to fetch repositories from GitHub:', error);
@@ -302,8 +303,12 @@ export async function getRepositoryDetails(owner: string, name: string): Promise
   if (detail && detail.owner === owner) {
     return detail;
   }
+  
   // Fallback for repos not in the mock details
-  const repo = (await getRepositories())?.find(r => r.name === name && r.owner === owner);
+  // Note: This relies on the mock `getRepositories` data.
+  const repos = await getRepositories(await getGitHubAccessToken());
+  const repo = repos?.find(r => r.name === name && r.owner === owner);
+
   if (repo) {
     return {
       ...repo,
