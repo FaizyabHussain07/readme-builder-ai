@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import RepoCard, { RepoCardSkeleton } from '@/components/RepoCard';
 import { getRepositories, type Repository } from '@/lib/github-data';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 export default function DashboardPage() {
   return (
@@ -20,11 +22,25 @@ export default function DashboardPage() {
 async function RepoGrid() {
   const repos = await getRepositories();
 
-  if (!repos || repos.length === 0) {
+  if (repos === null) {
+    return (
+      <Alert variant="destructive">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>
+          Could not fetch repositories from GitHub. Please ensure you are logged in and try again later.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  
+  if (repos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
-        <h3 className="text-2xl font-bold tracking-tight">No repositories found</h3>
-        <p className="text-sm text-muted-foreground">It seems you don&apos;t have any public repositories.</p>
+        <h3 className="text-2xl font-bold tracking-tight">No public repositories found</h3>
+        <p className="text-sm text-muted-foreground">
+          We couldn&apos;t find any public repositories in your GitHub account.
+        </p>
       </div>
     );
   }
