@@ -1,6 +1,6 @@
 'use client';
 
-import { generateReadmeAction } from '@/lib/actions';
+import { analyzeRepositoryForReadmeContent } from '@/ai/flows/analyze-repository-for-readme-content';
 import { type RepoDetails } from '@/lib/github-data';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -30,7 +30,7 @@ const formSchema = z.object({
   prompt: z.string().min(10, 'Prompt must be at least 10 characters long.'),
 });
 
-const INITIAL_README_CONTENT = `Click "Generate README" to create your file.\n\nThe AI will generate the following sections:\n- Title\n- Description\n- Features\n- Tech Stack\n- Setup\n- Usage\n- Contributing\n- License`;
+const INITIAL_README_CONTENT = `Click "Generate README" to create your file.\n\nThe AI will generate the following sections based on its analysis of your repository:\n- Title\n- Description\n- Features\n- Tech Stack\n- Setup\n- Usage\n- Contributing\n- License`;
 
 export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
   const [generatedReadme, setGeneratedReadme] = useState(INITIAL_README_CONTENT);
@@ -47,18 +47,36 @@ export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsGenerating(true);
     setGeneratedReadme('');
+
+    const apiKey = localStorage.getItem('readme_ai_api_key');
+    if (!apiKey) {
+      toast({
+        variant: 'destructive',
+        title: 'API Key Missing',
+        description: 'Please add your AI provider API key in the settings.',
+      });
+      setGeneratedReadme('API key not found. Please add it in the settings dialog.');
+      setIsGenerating(false);
+      return;
+    }
+
     try {
-      const result = await generateReadmeAction({
-        prompt: values.prompt,
+      const result = await analyzeRepositoryForReadmeContent({
+        customPrompt: values.prompt,
         repoName: repoDetails.name,
         repoDescription: repoDetails.description,
-      });
+        fileStructure: repoDetails.fileStructure,
+        programmingLanguages: repoDetails.language || 'Not specified',
+        dependencies: repoDetails.dependencies,
+        licenseInfo: repoDetails.license,
+      }, { apiKey });
 
-      if (result.error) {
+
+      if (!result.readmeContent) {
         toast({
           variant: 'destructive',
           title: 'Generation Failed',
-          description: result.error,
+          description: 'The AI failed to generate a README. Please try again.',
         });
         setGeneratedReadme(INITIAL_README_CONTENT);
       } else {
@@ -68,11 +86,11 @@ export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
           description: 'Your shiny new README is ready for review.',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'An Unexpected Error Occurred',
-        description: 'Please try again later.',
+        description: error.message || 'Please check your API key and try again later.',
       });
       setGeneratedReadme(INITIAL_README_CONTENT);
     } finally {

@@ -37,7 +37,20 @@ const prompt = ai.definePrompt({
   name: 'analyzeRepositoryForReadmeContentPrompt',
   input: {schema: AnalyzeRepositoryInputSchema},
   output: {schema: AnalyzeRepositoryOutputSchema},
-  prompt: `You are an AI expert in generating README.md files for GitHub repositories. Analyze the provided repository information and generate content for the README file, including a project description, how to get started, features, tech stack, usage, contributing guidelines, and license information.\n\nRepository Name: {{{repoName}}}\nRepository Description: {{{repoDescription}}}\nFile Structure: {{{fileStructure}}}\nProgramming Languages: {{{programmingLanguages}}}\nDependencies: {{{dependencies}}}\nLicense Information: {{{licenseInfo}}}\n\n{{#if customPrompt}}\nCustom Prompt: {{{customPrompt}}}\n{{/if}}\n\nBased on the above information, generate a comprehensive README.md content.`, // Changed from Handlebars to standard template literals
+  prompt: `You are an AI expert in generating README.md files for GitHub repositories. Analyze the provided repository information and generate content for the README file, including a project description, how to get started, features, tech stack, usage, contributing guidelines, and license information.
+
+Repository Name: {{{repoName}}}
+Repository Description: {{{repoDescription}}}
+File Structure: {{{fileStructure}}}
+Programming Languages: {{{programmingLanguages}}}
+Dependencies: {{{dependencies}}}
+License Information: {{{licenseInfo}}}
+
+{{#if customPrompt}}
+Custom Prompt: {{{customPrompt}}}
+{{/if}}
+
+Based on the above information, generate a comprehensive README.md content.`,
 });
 
 const analyzeRepositoryForReadmeContentFlow = ai.defineFlow(
