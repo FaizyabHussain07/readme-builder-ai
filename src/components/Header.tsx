@@ -48,7 +48,7 @@ export default function Header() {
     provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
-      router.push('/dashboard');
+      // On successful login, the useEffect will trigger the redirect.
     } catch (error) {
       console.error('Error signing in with GitHub:', error);
     }
@@ -58,6 +58,8 @@ export default function Header() {
     if (!auth) return;
     try {
       await signOut(auth);
+      // On successful logout, the useEffect will trigger the redirect.
+      await fetch('/api/auth/logout', { method: 'POST' });
       router.push('/');
     } catch (error)
  {

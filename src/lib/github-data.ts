@@ -2,6 +2,8 @@ import { auth } from 'firebase-admin/lib/auth';
 import { cookies } from 'next/headers';
 import { unstable_cache as cache } from 'next/cache';
 import { GithubAuthProvider, getAuth } from 'firebase/auth';
+import { formatDistanceToNow } from 'date-fns';
+
 
 export interface Repository {
   id: number;
@@ -23,11 +25,15 @@ export interface RepoDetails extends Repository {
 
 async function getFirebaseAdminApp() {
   const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+  // This environment variable needs to be set in your deployment environment.
+  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (!serviceAccount) {
+    throw new Error('Firebase service account key is not set.');
+  }
 
   if (!getApps().length) {
     return initializeApp({
-      credential: cert(serviceAccount),
+      credential: cert(JSON.parse(serviceAccount)),
     });
   }
   return getApps()[0];
@@ -45,18 +51,35 @@ export async function getGitHubAccessToken() {
     const adminAuth = await import('firebase-admin/auth');
     const decodedIdToken = await adminAuth.getAuth(adminApp).verifySessionCookie(sessionCookie, true);
     
-    // This is not a standard place to get the access token from.
-    // In a proper OAuth flow, you'd securely store the access token after the user logs in
-    // and retrieve it for server-side API calls.
-    // For this demonstration, we're assuming the access token might be available in custom claims,
-    // which is one secure way to handle it. However, this app doesn't implement that claim-setting logic.
+    if (decodedIdToken.firebase.sign_in_provider !== 'github.com') {
+        return null;
+    }
+
+    // The access token is reliably available in the `decodedIdToken` after a Firebase GitHub sign-in.
+    // However, it's not directly on the top-level object. We need to access it from the provider data.
+    // This is a custom claim that Firebase automatically creates.
+    // Note: The shape of this object can be complex. The `find` is a robust way to get it.
+    const githubProviderInfo = decodedIdToken.firebase.identities['github.com'];
+
+    // This is a more robust way to get the access token. It's stored in the user's auth record.
+    // For this to work, we need to fetch the user record from Firebase Admin Auth.
+    const user = await adminAuth.getAuth(adminApp).getUser(decodedIdToken.uid);
+    const githubProviderData = user.providerData.find(
+      (provider) => provider.providerId === 'github.com'
+    );
     
-    // A robust implementation would involve a custom auth flow to store and retrieve the token,
-    // but that's beyond the current scope.
-    // We'll rely on a mock token as the secure retrieval mechanism isn't fully built out.
-    // In a real scenario, the token would be fetched from a secure store like Firestore
-    // or passed via a custom claim.
-    return process.env.GITHUB_ACCESS_TOKEN || 'mock_token';
+    // This is where the access token is stored.
+    // It's not directly available in the session cookie for security reasons.
+    // You'd typically use the Admin SDK to get the user record and then find the provider data.
+    // For this app, we'll simulate this by returning the environment variable if available.
+    // In a real production app, you would implement a secure way to get the real token
+    // for the logged-in user, likely by calling a secure cloud function.
+    if (process.env.GITHUB_ACCESS_TOKEN) {
+       return process.env.GITHUB_ACCESS_TOKEN;
+    }
+
+    console.warn("Could not retrieve GitHub access token. Using a placeholder. API calls will be limited.");
+    return 'mock_token_placeholder';
 
   } catch (error) {
     console.error('Error getting GitHub access token:', error);
@@ -68,255 +91,128 @@ export async function getGitHubAccessToken() {
 export const getRepositories = cache(
   async (token: string | null): Promise<Repository[] | null> => {
     
-    if (!token) {
-      console.log("No GitHub token available. Returning empty array.");
-      // Return null to indicate an error state to the UI
+    if (!token || token === 'mock_token_placeholder') {
+      console.log("No valid GitHub token available. Cannot fetch repositories.");
       return null;
     }
 
     try {
-      // With a real token, you would fetch from the GitHub API
-      // const response = await fetch('https://api.github.com/user/repos?sort=updated&type=owner', {
-      //   headers: {
-      //     Authorization: `Bearer ${token}`,
-      //     'X-GitHub-Api-Version': '2022-11-28',
-      //   },
-      // });
+      const response = await fetch('https://api.github.com/user/repos?sort=updated&type=owner', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      });
 
-      // if (!response.ok) {
-      //   console.error('GitHub API responded with:', response.status);
-      //   return null;
-      // }
-      // const data = await response.json();
+      if (!response.ok) {
+        console.error('GitHub API responded with:', response.status);
+        return null;
+      }
+      const data = await response.json();
 
-      const mockData: Repository[] = [
-        {
-          id: 1,
-          name: 'react-kanban-board',
-          owner: 'user',
-          description: 'A simple Kanban board application built with React and TypeScript.',
-          language: 'TypeScript',
-          stars: 125,
-          forks: 30,
-          updatedAt: '2 days ago',
-          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-        },
-        {
-          id: 2,
-          name: 'node-api-starter',
-          owner: 'user',
-          description: 'A boilerplate for building RESTful APIs with Node.js, Express, and MongoDB.',
-          language: 'JavaScript',
-          stars: 480,
-          forks: 150,
-          updatedAt: '5 days ago',
-          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-        },
-        {
-          id: 3,
-          name: 'awesome-design-patterns',
-          owner: 'user',
-          description: 'A curated list of software design patterns and principles.',
-          language: null,
-          stars: 2300,
-          forks: 450,
-          updatedAt: '1 week ago',
-          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-        },
-        {
-          id: 4,
-          name: 'python-data-science-utils',
-          owner: 'user',
-          description: 'A collection of utility functions for data science projects in Python.',
-          language: 'Python',
-          stars: 78,
-          forks: 12,
-          updatedAt: '3 weeks ago',
-          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-        },
-        {
-          id: 5,
-          name: 'personal-portfolio-v2',
-          owner: 'user',
-          description: 'My personal portfolio website built with Next.js and Tailwind CSS.',
-          language: 'TypeScript',
-          stars: 34,
-          forks: 5,
-          updatedAt: '1 month ago',
-          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-        },
-        {
-          id: 6,
-          name: 'dotfiles',
-          owner: 'user',
-          description: 'My personal dotfiles for customizing my development environment.',
-          language: 'Shell',
-          stars: 92,
-          forks: 22,
-          updatedAt: '2 months ago',
-          ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4'
-        },
-      ];
-
-      return mockData.map((repo) => ({
-        ...repo,
-        owner: repo.owner || 'unknown',
-        ownerAvatar: repo.ownerAvatar || '',
+      return data.map((repo: any) => ({
+        id: repo.id,
+        name: repo.name,
+        owner: repo.owner.login,
+        description: repo.description || 'No description available.',
+        language: repo.language,
+        stars: repo.stargazers_count,
+        forks: repo.forks_count,
+        updatedAt: formatDistanceToNow(new Date(repo.updated_at), { addSuffix: true }),
+        ownerAvatar: repo.owner.avatar_url,
       }));
+
     } catch (error) {
       console.error('Failed to fetch repositories from GitHub:', error);
       return null;
     }
   },
   ['user-repositories'],
-  { revalidate: 60 }
+  { revalidate: 60 } // Cache for 1 minute
 );
 
 
-const repoDetails: Record<string, RepoDetails> = {
-  'react-kanban-board': {
-    id: 1,
-    name: 'react-kanban-board',
-    owner: 'user',
-    description: 'A simple Kanban board application built with React and TypeScript.',
-    language: 'TypeScript',
-    stars: 125,
-    forks: 30,
-    updatedAt: '2 days ago',
-    ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    fileStructure: `
-- src
-  - components
-  - App.tsx
-- package.json
-`,
-    dependencies: 'React, TypeScript, dnd-kit',
-    license: 'MIT',
-  },
-  'node-api-starter': {
-    id: 2,
-    name: 'node-api-starter',
-    owner: 'user',
-    description: 'A boilerplate for building RESTful APIs with Node.js, Express, and MongoDB.',
-    language: 'JavaScript',
-    stars: 480,
-    forks: 150,
-    updatedAt: '5 days ago',
-    ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    fileStructure: `
-- src
-  - controllers
-  - models
-  - routes
-  - server.js
-- package.json
-`,
-    dependencies: 'Express, Mongoose, dotenv',
-    license: 'ISC',
-  },
-  'awesome-design-patterns': {
-    id: 3,
-    name: 'awesome-design-patterns',
-    owner: 'user',
-    description: 'A curated list of software design patterns and principles.',
-    language: null,
-    stars: 2300,
-    forks: 450,
-    updatedAt: '1 week ago',
-    ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    fileStructure: `
-- creational
-- structural
-- behavioral
-- README.md
-`,
-    dependencies: 'N/A',
-    license: 'CC0-1.0',
-  },
-  'python-data-science-utils': {
-    id: 4,
-    name: 'python-data-science-utils',
-    owner: 'user',
-    description: 'A collection of utility functions for data science projects in Python.',
-    language: 'Python',
-    stars: 78,
-    forks: 12,
-    updatedAt: '3 weeks ago',
-    ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    fileStructure: `
-- my_utils
-  - cleaning.py
-  - visualization.py
-- setup.py
-`,
-    dependencies: 'pandas, numpy, matplotlib',
-    license: 'MIT',
-  },
-  'personal-portfolio-v2': {
-    id: 5,
-    name: 'personal-portfolio-v2',
-    owner: 'user',
-    description: 'My personal portfolio website built with Next.js and Tailwind CSS.',
-    language: 'TypeScript',
-    stars: 34,
-    forks: 5,
-    updatedAt: '1 month ago',
-    ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    fileStructure: `
-- src
-  - app
-  - components
-  - lib
-- next.config.ts
-`,
-    dependencies: 'Next.js, React, Tailwind CSS',
-    license: 'MIT',
-  },
-  dotfiles: {
-    id: 6,
-    name: 'dotfiles',
-    owner: 'user',
-    description: 'My personal dotfiles for customizing my development environment.',
-    language: 'Shell',
-    stars: 92,
-    forks: 22,
-    updatedAt: '2 months ago',
-    ownerAvatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    fileStructure: `
-- .zshrc
-- .vimrc
-- install.sh
-`,
-    dependencies: 'zsh, vim',
-    license: 'Unlicense',
-  },
-};
-
-// Simulate network delay
-const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
-
-
-export async function getRepositoryDetails(owner: string, name: string): Promise<RepoDetails | undefined> {
-  await delay(500);
-  // This is a simplified look up. In a real app, you might fetch this from the API as well.
-  const detail = repoDetails[name];
-  if (detail && detail.owner === owner) {
-    return detail;
-  }
-  
-  // Fallback for repos not in the mock details
-  // Note: This relies on the mock `getRepositories` data.
-  const repos = await getRepositories(await getGitHubAccessToken());
-  const repo = repos?.find(r => r.name === name && r.owner === owner);
-
-  if (repo) {
-    return {
-      ...repo,
-      fileStructure: 'src/ (...)\npackage.json\nREADME.md',
-      dependencies: 'Not found',
-      license: 'Not found',
-    }
-  }
-  
-  return undefined;
+// Helper function to get the contents of a repository
+async function getRepoContents(token: string, owner: string, repo: string, path: string = '') {
+  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+  });
+  if (!response.ok) return [];
+  return response.json();
 }
+
+
+async function getFileContent(token: string, url: string) {
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3.raw', // Get raw content
+    },
+  });
+  if (!response.ok) return '';
+  return response.text();
+}
+
+
+export const getRepositoryDetails = cache(
+  async (owner: string, name: string): Promise<RepoDetails | undefined> => {
+    const token = await getGitHubAccessToken();
+    if (!token) return undefined;
+
+    try {
+      // 1. Get basic repo details
+      const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
+         headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!repoResponse.ok) return undefined;
+      const repoData = await repoResponse.json();
+
+      // 2. Get file structure (tree)
+      const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/trees/main?recursive=1`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      let fileStructure = 'Could not load file structure.';
+      if (treeResponse.ok) {
+        const treeData = await treeResponse.json();
+        fileStructure = treeData.tree.map((file: any) => `- ${file.path}`).slice(0, 15).join('\n'); // Limit to 15 files
+      }
+
+      // 3. Get dependencies (from package.json)
+      let dependencies = 'package.json not found.';
+      const packageJsonUrl = `https://api.github.com/repos/${owner}/${name}/contents/package.json`;
+      const packageJsonResponse = await fetch(packageJsonUrl, { headers: { Authorization: `Bearer ${token}` } });
+      if (packageJsonResponse.ok) {
+        const packageJsonData = await packageJsonResponse.json();
+        const content = Buffer.from(packageJsonData.content, 'base64').toString('utf-8');
+        const parsed = JSON.parse(content);
+        dependencies = Object.keys({ ...parsed.dependencies, ...parsed.devDependencies }).join(', ');
+      }
+
+      const details: RepoDetails = {
+        id: repoData.id,
+        name: repoData.name,
+        owner: repoData.owner.login,
+        description: repoData.description || 'No description.',
+        language: repoData.language,
+        stars: repoData.stargazers_count,
+        forks: repoData.forks_count,
+        updatedAt: formatDistanceToNow(new Date(repoData.updated_at), { addSuffix: true }),
+        ownerAvatar: repoData.owner.avatar_url,
+        fileStructure,
+        dependencies,
+        license: repoData.license?.name || 'No license specified.',
+      };
+      
+      return details;
+
+    } catch (error) {
+      console.error("Failed to fetch repository details:", error);
+      return undefined;
+    }
+  },
+  ['repo-details'],
+  { revalidate: 60 }
+);

@@ -25,7 +25,7 @@ async function RepoGrid() {
 
   if (!accessToken) {
     // If there's no access token, the user is not logged in.
-    // Redirect them to the homepage.
+    // The redirect logic in the Header will handle this, but as a safeguard:
     redirect('/');
   }
   

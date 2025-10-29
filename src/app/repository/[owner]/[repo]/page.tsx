@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Suspense } from 'react';
 
 export default async function RepositoryPage({ params }: { params: { owner: string; repo: string } }) {
+  
+  // The suspense boundary will show a skeleton while this data is being fetched.
   const repoDetails = await getRepositoryDetails(params.owner, params.repo);
 
   if (!repoDetails) {
@@ -16,37 +18,11 @@ export default async function RepositoryPage({ params }: { params: { owner: stri
   return (
     <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 container py-8">
       <div className="lg:col-span-4">
-        <Suspense fallback={<RepoAnalysisSkeleton />}>
-          <RepoAnalysis repoDetails={repoDetails} />
-        </Suspense>
+        <RepoAnalysis repoDetails={repoDetails} />
       </div>
       <div className="lg:col-span-8">
         <ReadmeEditor repoDetails={repoDetails} />
       </div>
     </div>
-  );
-}
-
-function RepoAnalysisSkeleton() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-headline">Repository Analysis</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-1/4" />
-          <Skeleton className="h-8 w-full" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-1/4" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-1/4" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      </CardContent>
-    </Card>
   );
 }
