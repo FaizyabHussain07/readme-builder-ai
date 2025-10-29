@@ -22,12 +22,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useUser } from '@/firebase';
 import { GithubAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useAuth } from '@/firebase';
-import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const { user, loading } = useUser();
   const auth = useAuth();
-  const router = useRouter();
 
   const handleLogin = async () => {
     if (!auth) return;
@@ -36,7 +34,9 @@ export default function Home() {
     provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
-      // The redirect is handled by the Header component's useEffect
+      // On successful login, middleware will handle the redirect.
+      // We can also force a reload to ensure middleware is triggered.
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error("Error signing in with GitHub: ", error);
     }

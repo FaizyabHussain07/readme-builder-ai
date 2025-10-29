@@ -15,33 +15,18 @@ import Logo from './icons/Logo';
 import { Button } from './ui/button';
 import { Settings, LogOut, Github } from 'lucide-react';
 import SettingsDialog from './SettingsDialog';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUser } from '@/firebase';
 import { GithubAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { useAuth } from '@/firebase';
-import { useRouter, usePathname } from 'next/navigation';
 
 export default function Header() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { user, loading } = useUser();
   const auth = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (loading) return; // Wait until Firebase auth state is loaded
-
-    const isAuthPage = pathname === '/';
-    const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/repository');
-
-    if (user && isAuthPage) {
-      // If user is logged in and on the homepage, redirect to dashboard
-      router.push('/dashboard');
-    } else if (!user && isProtectedPage) {
-      // If user is not logged in and trying to access a protected page, redirect to home
-      router.push('/');
-    }
-  }, [user, loading, pathname, router]);
+  
+  // All redirection logic is now handled by src/middleware.ts
+  // This simplifies the Header component significantly.
 
   const handleLogin = async () => {
     if (!auth) return;
@@ -50,7 +35,9 @@ export default function Header() {
     provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
-      // On successful login, the useEffect above will trigger the redirect.
+      // On successful login, middleware will handle the redirect.
+      // We can also force a reload to ensure middleware is triggered.
+      window.location.href = '/dashboard';
     } catch (error) {
       console.error('Error signing in with GitHub:', error);
     }
@@ -62,7 +49,8 @@ export default function Header() {
       await signOut(auth);
       // Clear the session cookie by calling our API route
       await fetch('/api/auth/logout', { method: 'POST' });
-      // On successful logout, the useEffect will trigger the redirect.
+      // On successful logout, middleware will handle the redirect.
+      window.location.href = '/';
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -108,13 +96,10 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-             // Only show Login button on non-auth pages if user is not logged in
-             pathname !== '/' && (
-              <Button onClick={handleLogin}>
-                <Github className="mr-2 h-5 w-5" />
-                Login with GitHub
-              </Button>
-            )
+             <Button onClick={handleLogin}>
+               <Github className="mr-2 h-5 w-5" />
+               Login with GitHub
+             </Button>
           )}
         </div>
       </div>
