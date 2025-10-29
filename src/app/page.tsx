@@ -33,6 +33,8 @@ export default function Home() {
   const handleLogin = async () => {
     if (!auth) return;
     const provider = new GithubAuthProvider();
+    provider.addScope('repo');
+    provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
