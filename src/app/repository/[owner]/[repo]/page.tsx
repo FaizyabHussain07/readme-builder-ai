@@ -38,7 +38,8 @@ async function RepoDetails({ owner, repo }: { owner: string; repo: string }) {
 function RepoDetailsSkeleton() {
   return (
     <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 container py-8">
-      <div className="lg:col-span-4">
+      <div className="lg
+:col-span-4">
         <div className="sticky top-24 space-y-4">
           <Skeleton className="h-32 w-full" />
           <Skeleton className="h-64 w-full" />
