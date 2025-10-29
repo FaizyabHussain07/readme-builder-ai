@@ -31,7 +31,7 @@ const getFirebaseAdminApp = cache(async () => {
 
   if (!serviceAccountKey) {
     // This is a critical error for server-side auth.
-    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set. Go to Project Settings > Service Accounts in the Firebase console to generate a new private key.');
   }
 
   // Ensure no duplicate apps are initialized.
@@ -51,7 +51,7 @@ const getFirebaseAdminApp = cache(async () => {
  */
 export async function getGitHubAccessToken(): Promise<string | null> {
   try {
-    const sessionCookie = cookies().get('session')?.value;
+    const sessionCookie = (await cookies()).get('session')?.value;
     if (!sessionCookie) {
       return null; // No session cookie, user is not logged in.
     }
