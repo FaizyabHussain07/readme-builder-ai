@@ -1,9 +1,6 @@
-import { auth } from 'firebase-admin/lib/auth';
 import { cookies } from 'next/headers';
 import { unstable_cache as cache } from 'next/cache';
-import { GithubAuthProvider, getAuth } from 'firebase/auth';
 import { formatDistanceToNow } from 'date-fns';
-
 
 export interface Repository {
   id: number;
@@ -23,89 +20,98 @@ export interface RepoDetails extends Repository {
   license: string;
 }
 
-async function getFirebaseAdminApp() {
+/**
+ * Initializes the Firebase Admin SDK.
+ * This function is memoized to ensure it's only initialized once.
+ */
+const getFirebaseAdminApp = cache(async () => {
   const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-  // This environment variable needs to be set in your deployment environment.
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  if (!serviceAccount) {
-    throw new Error('Firebase service account key is not set.');
+  const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+
+  if (!serviceAccountKey) {
+    // This is a critical error for server-side auth.
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
   }
 
+  // Ensure no duplicate apps are initialized.
   if (!getApps().length) {
     return initializeApp({
-      credential: cert(JSON.parse(serviceAccount)),
+      credential: cert(JSON.parse(serviceAccountKey)),
     });
   }
-  return getApps()[0];
-}
+  return getApps()[0]; // Return existing app
+}, ['firebase-admin-app']);
 
 
-export async function getGitHubAccessToken() {
+/**
+ * Securely retrieves the GitHub access token for the current user from their session cookie.
+ * This function is intended to be called from Server Components or Route Handlers.
+ * @returns {Promise<string | null>} The GitHub access token, or null if the user is not authenticated.
+ */
+export async function getGitHubAccessToken(): Promise<string | null> {
   try {
     const sessionCookie = cookies().get('session')?.value;
     if (!sessionCookie) {
-      console.log('Session cookie not found');
-      return null;
+      return null; // No session cookie, user is not logged in.
     }
+
     const adminApp = await getFirebaseAdminApp();
     const adminAuth = await import('firebase-admin/auth');
+
+    // Verify the session cookie to get the decoded ID token.
     const decodedIdToken = await adminAuth.getAuth(adminApp).verifySessionCookie(sessionCookie, true);
-    
-    if (decodedIdToken.firebase.sign_in_provider !== 'github.com') {
-        return null;
-    }
 
-    // The access token is reliably available in the `decodedIdToken` after a Firebase GitHub sign-in.
-    // However, it's not directly on the top-level object. We need to access it from the provider data.
-    // This is a custom claim that Firebase automatically creates.
-    // Note: The shape of this object can be complex. The `find` is a robust way to get it.
-    const githubProviderInfo = decodedIdToken.firebase.identities['github.com'];
-
-    // This is a more robust way to get the access token. It's stored in the user's auth record.
-    // For this to work, we need to fetch the user record from Firebase Admin Auth.
+    // Fetch the full user record to access provider-specific data.
     const user = await adminAuth.getAuth(adminApp).getUser(decodedIdToken.uid);
+
+    // Find the GitHub provider data which contains the access token.
     const githubProviderData = user.providerData.find(
       (provider) => provider.providerId === 'github.com'
     );
-    
-    // This is where the access token is stored.
-    // It's not directly available in the session cookie for security reasons.
-    // You'd typically use the Admin SDK to get the user record and then find the provider data.
-    // For this app, we'll simulate this by returning the environment variable if available.
-    // In a real production app, you would implement a secure way to get the real token
-    // for the logged-in user, likely by calling a secure cloud function.
-    if (process.env.GITHUB_ACCESS_TOKEN) {
-       return process.env.GITHUB_ACCESS_TOKEN;
+
+    // The access token is not directly on the providerData object itself.
+    // It's part of the raw JSON that Firebase stores. We need to parse it.
+    if (githubProviderData && githubProviderData.toJSON) {
+      const providerJson = githubProviderData.toJSON() as any;
+      // The access token is typically available in the `accessToken` field after parsing.
+      // This is a custom claim added by Firebase upon GitHub sign-in.
+      if (providerJson.accessToken) {
+        return providerJson.accessToken;
+      }
     }
 
-    console.warn("Could not retrieve GitHub access token. Using a placeholder. API calls will be limited.");
-    return 'mock_token_placeholder';
+    // This part should ideally not be reached if the user signed in with GitHub.
+    console.warn('GitHub access token not found in user\'s provider data.');
+    return null;
 
   } catch (error) {
-    console.error('Error getting GitHub access token:', error);
+    // Errors can happen if the cookie is invalid or expired.
+    console.error('Error verifying session cookie or getting GitHub access token:', error);
     return null;
   }
 }
 
 
+/**
+ * Fetches the repositories for the authenticated user.
+ * This function is cached to improve performance.
+ * @param {string} token - The user's GitHub access token.
+ * @returns {Promise<Repository[] | null>} A list of repositories, or null on error.
+ */
 export const getRepositories = cache(
-  async (token: string | null): Promise<Repository[] | null> => {
-    
-    if (!token || token === 'mock_token_placeholder') {
-      console.log("No valid GitHub token available. Cannot fetch repositories.");
-      return null;
-    }
-
+  async (token: string): Promise<Repository[] | null> => {
     try {
       const response = await fetch('https://api.github.com/user/repos?sort=updated&type=owner', {
         headers: {
           Authorization: `Bearer ${token}`,
           'X-GitHub-Api-Version': '2022-11-28',
         },
+        // Use a short cache lifetime for user-specific, frequently updated data.
+        next: { revalidate: 60 } 
       });
 
       if (!response.ok) {
-        console.error('GitHub API responded with:', response.status);
+        console.error(`GitHub API responded with ${response.status} for /user/repos`);
         return null;
       }
       const data = await response.json();
@@ -127,70 +133,54 @@ export const getRepositories = cache(
       return null;
     }
   },
-  ['user-repositories'],
-  { revalidate: 60 } // Cache for 1 minute
+  ['user-repositories'] // Cache key
 );
 
-
-// Helper function to get the contents of a repository
-async function getRepoContents(token: string, owner: string, repo: string, path: string = '') {
-  const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-    },
-  });
-  if (!response.ok) return [];
-  return response.json();
-}
-
-
-async function getFileContent(token: string, url: string) {
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github.v3.raw', // Get raw content
-    },
-  });
-  if (!response.ok) return '';
-  return response.text();
-}
-
-
+/**
+ * Fetches detailed information for a single repository.
+ * This function is cached to improve performance.
+ * @param {string} token - The user's GitHub access token.
+ * @param {string} owner - The repository owner's username.
+ * @param {string} name - The repository name.
+ * @returns {Promise<RepoDetails | undefined>} Detailed repository info, or undefined on error.
+ */
 export const getRepositoryDetails = cache(
-  async (owner: string, name: string): Promise<RepoDetails | undefined> => {
-    const token = await getGitHubAccessToken();
-    if (!token) return undefined;
-
+  async (token: string, owner: string, name: string): Promise<RepoDetails | undefined> => {
     try {
+      const headers = { Authorization: `Bearer ${token}` };
+
       // 1. Get basic repo details
-      const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
-         headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!repoResponse.ok) return undefined;
+      const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${name}`, { headers });
+      if (!repoResponse.ok) {
+        console.error(`GitHub API responded with ${repoResponse.status} for /repos/${owner}/${name}`);
+        return undefined;
+      }
       const repoData = await repoResponse.json();
 
       // 2. Get file structure (tree)
-      const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/trees/main?recursive=1`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const treeResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/git/trees/main?recursive=1`, { headers });
       let fileStructure = 'Could not load file structure.';
       if (treeResponse.ok) {
         const treeData = await treeResponse.json();
-        fileStructure = treeData.tree.map((file: any) => `- ${file.path}`).slice(0, 15).join('\n'); // Limit to 15 files
+        // Limit to a reasonable number of files for the prompt
+        fileStructure = treeData.tree.map((file: any) => `- ${file.path}`).slice(0, 20).join('\n');
       }
 
-      // 3. Get dependencies (from package.json)
-      let dependencies = 'package.json not found.';
-      const packageJsonUrl = `https://api.github.com/repos/${owner}/${name}/contents/package.json`;
-      const packageJsonResponse = await fetch(packageJsonUrl, { headers: { Authorization: `Bearer ${token}` } });
-      if (packageJsonResponse.ok) {
-        const packageJsonData = await packageJsonResponse.json();
-        const content = Buffer.from(packageJsonData.content, 'base64').toString('utf-8');
-        const parsed = JSON.parse(content);
-        dependencies = Object.keys({ ...parsed.dependencies, ...parsed.devDependencies }).join(', ');
+      // 3. Get dependencies (from package.json, if it exists)
+      let dependencies = 'No package.json found.';
+      try {
+        const packageJsonResponse = await fetch(`https://api.github.com/repos/${owner}/${name}/contents/package.json`, { headers });
+        if (packageJsonResponse.ok) {
+          const packageJsonData = await packageJsonResponse.json();
+          const content = Buffer.from(packageJsonData.content, 'base64').toString('utf-8');
+          const parsed = JSON.parse(content);
+          const allDeps = { ...parsed.dependencies, ...parsed.devDependencies };
+          dependencies = Object.keys(allDeps).length > 0 ? Object.keys(allDeps).join(', ') : 'No dependencies listed.';
+        }
+      } catch (e) {
+        console.log(`Could not read package.json for ${owner}/${name}`);
       }
-
+      
       const details: RepoDetails = {
         id: repoData.id,
         name: repoData.name,
@@ -209,10 +199,9 @@ export const getRepositoryDetails = cache(
       return details;
 
     } catch (error) {
-      console.error("Failed to fetch repository details:", error);
+      console.error(`Failed to fetch repository details for ${owner}/${name}:`, error);
       return undefined;
     }
   },
-  ['repo-details'],
-  { revalidate: 60 }
+  ['repo-details'] // Base cache key
 );

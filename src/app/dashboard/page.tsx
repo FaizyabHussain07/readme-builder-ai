@@ -23,21 +23,21 @@ export default function DashboardPage() {
 async function RepoGrid() {
   const accessToken = await getGitHubAccessToken();
 
+  // If there's no access token, the user is not logged in.
+  // The logic in the Header will handle the redirect, but this is a safeguard.
   if (!accessToken) {
-    // If there's no access token, the user is not logged in.
-    // The redirect logic in the Header will handle this, but as a safeguard:
     redirect('/');
   }
-  
+
   const repos = await getRepositories(accessToken);
 
   if (repos === null) {
     return (
       <Alert variant="destructive">
         <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
+        <AlertTitle>Error Fetching Repositories</AlertTitle>
         <AlertDescription>
-          Could not fetch repositories from GitHub. Please ensure you are logged in and your session is valid. You might need to log out and log back in.
+          Could not fetch repositories from GitHub. This might be due to an issue with your GitHub authentication token. Please try logging out and logging back in.
         </AlertDescription>
       </Alert>
     );

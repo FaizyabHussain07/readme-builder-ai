@@ -29,14 +29,16 @@ export default function Header() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (loading) return; // Wait until loading is finished
+    if (loading) return; // Wait until Firebase auth state is loaded
 
     const isAuthPage = pathname === '/';
     const isProtectedPage = pathname.startsWith('/dashboard') || pathname.startsWith('/repository');
 
     if (user && isAuthPage) {
+      // If user is logged in and on the homepage, redirect to dashboard
       router.push('/dashboard');
     } else if (!user && isProtectedPage) {
+      // If user is not logged in and trying to access a protected page, redirect to home
       router.push('/');
     }
   }, [user, loading, pathname, router]);
@@ -48,7 +50,7 @@ export default function Header() {
     provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
-      // On successful login, the useEffect will trigger the redirect.
+      // On successful login, the useEffect above will trigger the redirect.
     } catch (error) {
       console.error('Error signing in with GitHub:', error);
     }
@@ -58,11 +60,10 @@ export default function Header() {
     if (!auth) return;
     try {
       await signOut(auth);
-      // On successful logout, the useEffect will trigger the redirect.
+      // Clear the session cookie by calling our API route
       await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/');
-    } catch (error)
- {
+      // On successful logout, the useEffect will trigger the redirect.
+    } catch (error) {
       console.error('Error signing out:', error);
     }
   };
@@ -107,6 +108,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
+             // Only show Login button on protected pages if user is not logged in
              pathname !== '/' && (
               <Button onClick={handleLogin}>
                 <Github className="mr-2 h-5 w-5" />

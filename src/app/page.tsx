@@ -11,17 +11,14 @@ import {
   Settings2,
   GitCommit,
   Star,
-  Download,
+  Cpu,
   GitBranch,
   BookCheck,
   Rocket,
-  Cpu,
 } from 'lucide-react';
 import Logo from '@/components/icons/Logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import Image from 'next/image';
 import { useUser } from '@/firebase';
 import { GithubAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useAuth } from '@/firebase';
@@ -39,7 +36,7 @@ export default function Home() {
     provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
-      router.push('/dashboard');
+      // The redirect is handled by the Header component's useEffect
     } catch (error) {
       console.error("Error signing in with GitHub: ", error);
     }

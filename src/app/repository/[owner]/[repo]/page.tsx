@@ -1,17 +1,24 @@
 import { getRepositoryDetails } from '@/lib/github-data';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import RepoAnalysis from './components/RepoAnalysis';
 import ReadmeEditor from './components/ReadmeEditor';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Suspense } from 'react';
+import { getGitHubAccessToken } from '@/lib/github-data';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default async function RepositoryPage({ params }: { params: { owner: string; repo: string } }) {
-  
-  // The suspense boundary will show a skeleton while this data is being fetched.
-  const repoDetails = await getRepositoryDetails(params.owner, params.repo);
+
+// Component to fetch and display repository details
+async function RepoDetails({ owner, repo }: { owner: string; repo: string }) {
+  const accessToken = await getGitHubAccessToken();
+  if (!accessToken) {
+    // This should be handled by the Header's redirect, but it's a safeguard
+    redirect('/');
+  }
+
+  const repoDetails = await getRepositoryDetails(accessToken, owner, repo);
 
   if (!repoDetails) {
+    // If details can't be fetched, maybe the repo doesn't exist or user lacks permission
     notFound();
   }
 
@@ -24,5 +31,32 @@ export default async function RepositoryPage({ params }: { params: { owner: stri
         <ReadmeEditor repoDetails={repoDetails} />
       </div>
     </div>
+  );
+}
+
+// Skeleton component for loading state
+function RepoDetailsSkeleton() {
+  return (
+    <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 container py-8">
+      <div className="lg:col-span-4">
+        <div className="sticky top-24 space-y-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+      <div className="lg:col-span-8 space-y-8">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    </div>
+  );
+}
+
+
+export default function RepositoryPage({ params }: { params: { owner: string; repo: string } }) {
+  return (
+    <Suspense fallback={<RepoDetailsSkeleton />}>
+      <RepoDetails owner={params.owner} repo={params.repo} />
+    </Suspense>
   );
 }
