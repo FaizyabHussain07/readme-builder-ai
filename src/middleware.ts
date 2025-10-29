@@ -8,14 +8,14 @@ export function middleware(request: NextRequest) {
 
   const isProtectedRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/repository');
   
-  // If user is trying to access a protected route without a session, redirect to home.
-  if (isProtectedRoute && !sessionCookie) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
   // If user is on the homepage with a session, redirect to dashboard.
   if (pathname === '/' && sessionCookie) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // If user is trying to access a protected route without a session, redirect to home.
+  if (isProtectedRoute && !sessionCookie) {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return NextResponse.next();
