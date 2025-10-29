@@ -21,6 +21,7 @@ import { Sparkles, Bot, Loader2, Github } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { commitReadmeToGitHub } from '@/lib/github-actions';
 
 interface ReadmeEditorProps {
   repoDetails: RepoDetails;
@@ -35,6 +36,7 @@ const INITIAL_README_CONTENT = `Click "Generate README" to create your file.\n\n
 export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
   const [generatedReadme, setGeneratedReadme] = useState(INITIAL_README_CONTENT);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCommitting, setIsCommitting] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -69,7 +71,7 @@ export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
         programmingLanguages: repoDetails.language || 'Not specified',
         dependencies: repoDetails.dependencies,
         licenseInfo: repoDetails.license,
-      }, { apiKey });
+      });
 
 
       if (!result.readmeContent) {
@@ -98,11 +100,41 @@ export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
     }
   }
 
-  const handleCommit = () => {
-    toast({
-      title: 'Commit Successful (Mock)',
-      description: 'Your README.md has been committed to the repository.',
-    });
+  const handleCommit = async () => {
+    setIsCommitting(true);
+    try {
+      const result = await commitReadmeToGitHub({
+        owner: repoDetails.owner,
+        repo: repoDetails.name,
+        content: generatedReadme,
+      });
+
+      if (result.success) {
+        toast({
+          title: 'Commit Successful!',
+          description: 'Your README.md has been committed to the repository.',
+          action: (
+            <a href={result.url} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline">View Commit</Button>
+            </a>
+          )
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Commit Failed',
+          description: result.error || 'Could not commit README to GitHub.',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'An Unexpected Error Occurred',
+        description: error.message || 'An unknown error occurred during the commit.',
+      });
+    } finally {
+      setIsCommitting(false);
+    }
   };
 
   return (
@@ -142,7 +174,7 @@ export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={isGenerating}>
+              <Button type="submit" disabled={isGenerating || isCommitting}>
                 {isGenerating ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -185,8 +217,12 @@ export default function ReadmeEditor({ repoDetails }: ReadmeEditorProps) {
           )}
         </CardContent>
         <CardFooter>
-          <Button onClick={handleCommit} disabled={isGenerating || generatedReadme === INITIAL_README_CONTENT}>
-            <Github className="mr-2 h-4 w-4" />
+          <Button onClick={handleCommit} disabled={isGenerating || isCommitting || generatedReadme === INITIAL_README_CONTENT}>
+            {isCommitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Github className="mr-2 h-4 w-4" />
+            )}
             Commit to GitHub
           </Button>
         </CardFooter>
