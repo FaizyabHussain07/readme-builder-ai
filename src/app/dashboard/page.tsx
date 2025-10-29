@@ -3,6 +3,7 @@ import RepoCard, { RepoCardSkeleton } from '@/components/RepoCard';
 import { getRepositories, type Repository, getGitHubAccessToken } from '@/lib/github-data';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { redirect } from 'next/navigation';
 
 export default function DashboardPage() {
   return (
@@ -21,6 +22,13 @@ export default function DashboardPage() {
 
 async function RepoGrid() {
   const accessToken = await getGitHubAccessToken();
+
+  if (!accessToken) {
+    // If there's no access token, the user is not logged in.
+    // Redirect them to the homepage.
+    redirect('/');
+  }
+  
   const repos = await getRepositories(accessToken);
 
   if (repos === null) {
