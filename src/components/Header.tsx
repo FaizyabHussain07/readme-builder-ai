@@ -108,7 +108,7 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-             // Only show Login button on protected pages if user is not logged in
+             // Only show Login button on non-auth pages if user is not logged in
              pathname !== '/' && (
               <Button onClick={handleLogin}>
                 <Github className="mr-2 h-5 w-5" />
