@@ -25,10 +25,19 @@ import Image from 'next/image';
 import { useUser } from '@/firebase';
 import { GithubAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useAuth } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function Home() {
   const { user, loading } = useUser();
   const auth = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
   
   const handleLogin = async () => {
     if (!auth) return;
@@ -37,6 +46,7 @@ export default function Home() {
     provider.addScope('user');
     try {
       await signInWithPopup(auth, provider);
+      router.push('/dashboard');
     } catch (error) {
       console.error("Error signing in with GitHub: ", error);
     }
@@ -139,16 +149,9 @@ export default function Home() {
             Effortlessly generate professional README files for your GitHub repositories using the power of AI. Connect your GitHub account and let's get started.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            {loading ? (
+            {loading || user ? (
               <Button size="lg" className="font-bold text-lg" disabled>
                 Loading...
-              </Button>
-            ) : user ? (
-              <Button asChild size="lg" className="font-bold text-lg">
-                <Link href="/dashboard">
-                  Go to Dashboard
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
               </Button>
             ) : (
               <Button size="lg" className="font-bold text-lg" onClick={handleLogin}>
